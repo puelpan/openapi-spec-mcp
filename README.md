@@ -6,7 +6,7 @@ documentation.
 
 ## Setup for Claude Code
 
-Add to your `claude_desktop_config.json`:
+Add to your `.mcp.json`, `.claude.json` or `claude_desktop_config.json`.
 
 ```json
 {
