@@ -1,0 +1,13 @@
+[project]
+name = "openapi-spec-mcp"
+version = "0.1.0"
+description = "MCP server to convert any openapi spec into a tool for your LLM"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["mcp>=1.15.0", "pyyaml>=6.0.3"]
+
+[project.scripts]
+openapi-spec-mcp = "main:entry_point"
+
+[dependency-groups]
+dev = ["pyright>=1.1.406", "ruff>=0.14.1"]

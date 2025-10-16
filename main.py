@@ -1,17 +1,9 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# dependencies = [
-#   "mcp",
-#   "pyyaml",
-# ]
-# ///
-
 import argparse
 import asyncio
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
@@ -77,6 +69,10 @@ class OpenAPIServer:
 
     def _load_spec_from_file(self):
         """Load OpenAPI spec from a local file"""
+        if self.docs_path is None:
+            self.logger.error("Cannot load from file: path is None")
+            return
+
         if not self.docs_path.exists():
             self.logger.error(f"OpenAPI spec file not found: {self.docs_path}")
             return
@@ -127,7 +123,10 @@ class OpenAPIServer:
                     inputSchema={
                         "type": "object",
                         "properties": {
-                            "query": {"type": "string", "description": "Search term to match against schema names"}
+                            "query": {
+                                "type": "string",
+                                "description": "Search term to match against schema names",
+                            }
                         },
                         "required": ["query"],
                     },
@@ -138,7 +137,10 @@ class OpenAPIServer:
                     inputSchema={
                         "type": "object",
                         "properties": {
-                            "schema_name": {"type": "string", "description": "Name of the schema to retrieve"}
+                            "schema_name": {
+                                "type": "string",
+                                "description": "Name of the schema to retrieve",
+                            }
                         },
                         "required": ["schema_name"],
                     },
@@ -259,7 +261,7 @@ class OpenAPIServer:
                         )
         return results
 
-    def resolve_schema_ref(self, ref: str, visited: set = None) -> Dict:
+    def resolve_schema_ref(self, ref: str, visited: set[str] | None = None) -> Dict:
         """Resolve a $ref reference to its actual schema definition
 
         Args:
@@ -297,6 +299,7 @@ class OpenAPIServer:
 
         # Deep copy to avoid modifying the original spec
         import copy
+
         schema = copy.deepcopy(current)
 
         # Recursively resolve any nested $ref in the schema
@@ -304,7 +307,7 @@ class OpenAPIServer:
 
         return schema
 
-    def _resolve_nested_refs(self, obj, visited: set):
+    def _resolve_nested_refs(self, obj: Any, visited: set[str]) -> Any:
         """Recursively resolve all $ref in a schema object"""
         if isinstance(obj, dict):
             if "$ref" in obj:
@@ -316,7 +319,10 @@ class OpenAPIServer:
                         resolved[key] = value
                 return resolved
             else:
-                return {key: self._resolve_nested_refs(value, visited) for key, value in obj.items()}
+                return {
+                    key: self._resolve_nested_refs(value, visited)
+                    for key, value in obj.items()
+                }
         elif isinstance(obj, list):
             return [self._resolve_nested_refs(item, visited) for item in obj]
         else:
@@ -351,14 +357,20 @@ class OpenAPIServer:
             if query_lower in schema_name.lower():
                 description = ""
                 if isinstance(schema_def, dict):
-                    description = schema_def.get("description", schema_def.get("title", ""))
+                    description = schema_def.get(
+                        "description", schema_def.get("title", "")
+                    )
 
-                results.append({
-                    "name": schema_name,
-                    "ref": f"{prefix}{schema_name}",
-                    "description": description,
-                    "type": schema_def.get("type", "object") if isinstance(schema_def, dict) else "unknown"
-                })
+                results.append(
+                    {
+                        "name": schema_name,
+                        "ref": f"{prefix}{schema_name}",
+                        "description": description,
+                        "type": schema_def.get("type", "object")
+                        if isinstance(schema_def, dict)
+                        else "unknown",
+                    }
+                )
 
         return results
 
@@ -388,11 +400,7 @@ class OpenAPIServer:
 
         resolved = self.resolve_schema_ref(ref)
 
-        return {
-            "name": schema_name,
-            "ref": ref,
-            "schema": resolved
-        }
+        return {"name": schema_name, "ref": ref, "schema": resolved}
 
     async def run(self):
         async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
@@ -447,5 +455,10 @@ async def main():
         raise
 
 
-if __name__ == "__main__":
+def entry_point():
+    """Entry point for CLI script"""
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    entry_point()
